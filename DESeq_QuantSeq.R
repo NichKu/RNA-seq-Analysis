@@ -6,32 +6,33 @@
 
 library(tximport)
 library(RColorBrewer)
-library(gplots)
 library(DESeq2)
-library(reshape2)
 library(ggplot2)
 library(ggrepel)
-library(DEGreport)
 library(pheatmap)
 library(clusterProfiler)
-library(pathview)
 library(enrichplot)
-library(readr)
-library(EnsDb.Hsapiens.v86)
 library(org.Hs.eg.db)
-library(tidyverse)
-library(RColorBrewer)
+library(vsn)
+library(biomaRt)
+library(DEGreport)
+
+#library(readr)
+#library(EnsDb.Hsapiens.v86)
+#library(pathview)
+#library(reshape2)
+#library(tidyverse)
+#library(gplots)
 #library(DOSE)
 #library(pathview)
 #library(AnnotationHub)
 #library(ensembldb)
-library(vsn)
-#library(biomaRt)
 #library(ggnewscale)
 
 
-## Change to location of results directory and samples.csv file
-setwd("/Users/nicholas/Desktop/Results_quant_sf_DESeq/")
+## Change to location of results directory with the amples.txt file and sample directories containing the quant.sf files 
+wddir = "/Users/nicholas/Desktop/Results_quant_sf_DESeq/"
+setwd(wddir)
 base_dir = getwd()
 
 # Create directory for output results
@@ -41,7 +42,7 @@ dir.create(file.path(getwd(), 'DESeq_output'), showWarnings = FALSE)
 samples = read.table(file.path(base_dir, "samples.txt"), header = TRUE, stringsAsFactors=FALSE)
 samples$condition <- factor(samples$condition)
 samples$patient <- factor(samples$patient)
-samples$patient <- relevel()
+#samples$patient <- relevel()
 samples        # Prints the sample / condition list
 
 
@@ -92,9 +93,9 @@ rld <- rlog(dds, blind=TRUE) # apply a regularized log transformation, ignoring 
 samples
 treat_ann <- samples[,c("condition", "patient")]
 treat_ann
-rownames(treat_ann) <- treat_ann$sample
+#rownames(treat_ann) <- treat_ann$sample
 #treat_ann$sample <- NULL
-treat_ann
+#treat_ann
 
 
 ## SAMPLE TO SAMPLE DISTANCE & CORRELATION HEATMAPS
@@ -120,6 +121,7 @@ pheatmap(sampleDistMatrix,
          annotation = treat_ann,
          col=colors,
          main="Sample to Sample Distances")
+
 dev.off()
 
 ## Principal Component Analysis
@@ -139,7 +141,6 @@ ggplot(data, aes(PC1, PC2, color=condition)) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
   ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   ggtitle("")
-
 dev.off()
 
 ###################################################################################################
@@ -150,17 +151,25 @@ dev.off()
 ## DESeq = fx to calculate DE
 ## Combines multiple steps from DESeq
 dds <- DESeq(dds)
-dev.new()
+png(filename="DESeq_output/DispEst.png", units = 'in', width = 12, height = 8, res = 250)
 plotDispEsts(dds)
+dev.off()
 ntd <- normTransform(dds)
+png(filename="DESeq_output/SDplot.png", units = 'in', width = 12, height = 8, res = 250)
 meanSdPlot(assay(ntd), ranks=F)
+dev.off()
+
+
 x <- assay(ntd)[,1]
 y <- assay(ntd)[,2]
 plot(.5*(x + y), y - x,
      cex=.5, col=rgb(0,0,0,.1), pch=20)
 abline(h=0, col="red", lwd=3)
 
-
+degResults(dds = dds, name = "pre versus post", org = NULL,
+                        do_go = FALSE, group = "condition", xs = "condition",
+                        path_results = "DESeq_output/")
+resreport
 resultsNames(dds)
 res <- results(dds)
 res
@@ -187,7 +196,7 @@ ggplot(d, aes(x=condition, y=count)) +
 
 ### Set thresholds
 padj.cutoff <- 0.05
-lfc.cutoff <- 0.6
+lfc.cutoff <- 0.58
 threshold <- res$padj < padj.cutoff & abs(res$log2FoldChange) > lfc.cutoff
 res$threshold <- threshold 
 sigOE <- data.frame(subset(res, threshold==TRUE))
@@ -195,14 +204,14 @@ sigOE_ordered <- sigOE[order(sigOE$padj), ]
 top20_sigOE_genes <- rownames(sigOE_ordered[1:30, ])
 normalized_counts <- counts(dds, normalized=T)
 
-## use melt to modify the format of the data frame
-melted_top20_sigOE <- data.frame(melt(top20_sigOE_norm))
+### use melt to modify the format of the data frame
+#melted_top20_sigOE <- data.frame(melt(top20_sigOE_norm))
 
 ## check the column header in the "melted" data frame
 #View(melted_top20_sigOE)
 
-## add column names that make sense
-colnames(melted_top20_sigOE) <- c("gene", "samplename", "normalized_counts")
+### add column names that make sense
+#colnames(melted_top20_sigOE) <- c("gene", "samplename", "normalized_counts")
 
 
 resOE_df <- data.frame(res)
@@ -217,7 +226,7 @@ resOE_df_ordered$genelabels <- rownames(resOE_df_ordered) %in% rownames(resOE_df
 ggplot(resOE_df_ordered) +
   geom_point(aes(x = log2FoldChange, y = -log10(padj), colour = threshold)) +
   geom_text_repel(aes(x = log2FoldChange, y = -log10(padj), label = ifelse(genelabels == T, rownames(resOE_df_ordered),""))) +
-  ggtitle("Mov10 overexpression") +
+  ggtitle("") +
   xlab("log2 fold change") + 
   ylab("-log10 adjusted p-value") +
   theme(legend.position = "none",
@@ -226,8 +235,8 @@ ggplot(resOE_df_ordered) +
 
 
 ### Annotate our heatmap (optional)
-annotation <- data.frame(sampletype=meta[,'sampletype'], 
-                         row.names=rownames(meta))
+#annotation <- data.frame(sampletype=meta[,'sampletype'], 
+#                         row.names=rownames(meta))
 norm_OEsig <- normalized_counts[rownames(sigOE),]
 ### Set a color palette
 heat.colors <- brewer.pal(6, "YlOrRd")
@@ -252,8 +261,7 @@ pheatmap(norm_OEsig,
          fontsize = 10,
          scale="row",
          fontsize_row = 10, 
-         height=20,
-         annotation = treat_ann_2)
+         height=20)
 
 
 
@@ -269,7 +277,7 @@ all_genes <- as.character(rownames(res))
 signif_res <- res[res$padj < 0.05 & !is.na(res$padj), ] 
 signif_genes <- as.character(rownames(signif_res))
 signif_genes
-keytypes(org.Hs.eg.db)
+#keytypes(org.Hs.eg.db)
 # Run GO enrichment analysis
 ego <- enrichGO(gene = signif_genes,
                 universe = all_genes,

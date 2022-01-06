@@ -1,7 +1,7 @@
 **RNA-seq Data Analysis with DEGA, EA and GSEA**
 ---
 
-author: Nicholas Küng
+author: Nicholas Küng\
 contact: nicholas.kueng@extern.insel.ch
 
 
@@ -11,5 +11,26 @@ This script uses the Salmon quantification output, a samplesheet file and a gene
 - GO Enrichment Analysis and
 - Gene Set Enrichment Analysis
 
-To run the program and save the output define your working directory which also contains the salmon output directories. The path has to be entered in line 34 as following:\
+To run the program and save the output define your working directory. The path has to be entered in line 34 as following:\
 **wddir = "yourPATH/"**
+
+In this directory the following files and subdirectories should exist:\
+- sample specific Salmon output files with quant.sf files
+- sample.txt
+- salmon_tx2gene.tsv
+
+see Salmon_QuantFiles
+
+**Dependencies**
+- tximport
+- RColorBrewer
+- DESeq2
+- ggplot2
+- ggrepel
+- pheatmap
+- clusterProfiler
+- enrichplot
+- org.Hs.eg.db
+- vsn
+- biomaRt
+- DEGreport
