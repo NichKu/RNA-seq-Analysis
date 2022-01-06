@@ -14,12 +14,12 @@ This script uses the Salmon quantification output, a samplesheet file and a gene
 To run the program and save the output define your working directory. The path has to be entered in line 34 as following:\
 **wddir = "yourPATH/"**
 
-In this directory the following files and subdirectories should exist:\
+In this directory the following files and subdirectories should exist:
 - sample specific Salmon output files with quant.sf files
 - sample.txt
 - salmon_tx2gene.tsv
 
-see Salmon_QuantFiles
+see [Salmon_QuantFiles](https://github.com/NichKu/RNA-seq-Analysis/tree/master/Salmon_QuantFiles)
 
 **Dependencies**
 - tximport
