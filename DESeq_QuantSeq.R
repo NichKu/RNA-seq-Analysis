@@ -77,6 +77,8 @@ dds <- DESeqDataSetFromTximport(txi, samples, ~ condition)
 rownames(samples) <- colnames(txi$counts)
 
 resultsNames(dds)
+
+
 ###################################################################################################
 #
 #    EXPLORATORY DATA ANALYSIS
@@ -152,6 +154,8 @@ dev.off()
 ## DESeq = fx to calculate DE
 ## Combines multiple steps from DESeq
 dds <- DESeq(dds, betaPrior = TRUE)
+
+
 resultsNames(dds)
 ## QC
 png(filename="DESeq_output/DispEst_sal.png", units = 'in', width = 12, height = 8, res = 250)
@@ -188,8 +192,7 @@ dev.off()
 ##uncomment if filtering is desired
 #keep <- rowSums(counts(dds)) >= 0
 #dds <- dds[keep,]
-res <- results(dds)
-res
+res <- results(dds, contrast = c("condition","post","pre"))
 summary(res)
 write.table(counts(dds),"DESeq_output/DESeq2.counts.tsv", sep="\t", quote=FALSE, col.names=NA)
 write.table(counts(dds, normalized=T),"DESeq_output/DESeq2.counts_normalized.tsv", sep="\t", quote=FALSE, col.names=NA)
@@ -199,7 +202,7 @@ hist (res$pvalue, breas=20)
 hist (res$padj, breas=20)
 
 ## plot log2 fold changes
-png(filename="DESeq_output/Log2_fold.png", units = 'in', width = 12, height = 8, res = 250)
+png(filename="DESeq_output/Log2_fold_sal.png", units = 'in', width = 12, height = 8, res = 250)
 plotMA(res, ylim=c(-3,3))
 dev.off()
 
@@ -264,7 +267,7 @@ ggplot(resOE_df_ordered) +
         plot.title = element_text(size = rel(1.5), hjust = 0.5),
         axis.title = element_text(size = rel(1.25))) 
 dev.off()
-dev.new()
+
 ### Annotate our heatmap (optional)
 #annotation <- data.frame(sampletype=meta[,'sampletype'], 
 #                         row.names=rownames(meta))
@@ -295,6 +298,7 @@ pheatmap(norm_OEsig,
          scale="row",
          fontsize_row = 10, 
          height=20)
+summary(res)
 
 
 dev.off()
@@ -379,3 +383,8 @@ gseaKEGG <- gseKEGG(geneList = lFC,
 # Extract the GSEA results
 gseaKEGG_results <- gseaKEGG@result
 gseaKEGG_results
+
+
+
+
+#Compared RNAseq to Nanostring

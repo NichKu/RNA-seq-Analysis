@@ -39,7 +39,7 @@ base_dir = getwd()
 wd = getwd()
 wd
 # Create directory for output results
-dir.create(file.path(getwd(), 'DESeq_output2'), showWarnings = FALSE)
+dir.create(file.path(getwd(), 'DESeq_output'), showWarnings = FALSE)
 
 ## Import sample and condition file
 samples = read.table(file.path(base_dir, "sampleTable.txt"), header = TRUE, stringsAsFactors=FALSE)
@@ -49,7 +49,7 @@ samples# Prints the sample / condition list
 
 #A function to read one of the count files produced by HTSeq
 ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = samples, directory = wd, design= ~ condition)
-ddsHTSeq
+rownames(ddsHTSeq)
 
 
 ###################################################################################################
@@ -68,7 +68,7 @@ rld <- rlog(ddsHTSeq, blind=TRUE) # apply a regularized log transformation, igno
 ## Setup annotation file to show the conditions on the figures
 samples
 treat_ann <- samples[,c("condition", "patient")]
-rownames(treat_ann) <- rownames(corr_samps)
+rownames(treat_ann) <- samples$sampleName
 treat_ann
 
 
@@ -163,11 +163,9 @@ dev.off()
 #keep <- rowSums(counts(dds)) >= 0
 #dds <- dds[keep,]
 dds$condition
-res <- results(dds, contrast = c("condition","A","B"))
+res <- results(dds, contrast = c("condition","B","A"))
 summary(res)
 
-write.table(counts(dds),"DESeq_output/DESeq2.counts.tsv", sep="\t", quote=FALSE, col.names=NA)
-write.table(counts(dds, normalized=T),"DESeq_output/DESeq2.counts_normalized.tsv", sep="\t", quote=FALSE, col.names=NA)
 
 
 res <- as.data.frame(res) %>% 
@@ -182,6 +180,40 @@ anno <- AnnotationDbi::select(org.Hs.eg.db,keys=res$ENSEMBL,
 anno
 res <- left_join(res, anno,by="ENSEMBL")
 res
+
+
+
+counttable <- counts(dds, normalized=T)
+counttable
+counttable <- counttable[apply(counttable[,-1], 1, function(x) !all(x==60)),]
+counttable
+
+anno <- AnnotationDbi::select(org.Hs.eg.db, keys=rownames(counttable),
+                              columns=c("SYMBOL"),
+                              keytype="ENSEMBL")
+anno <- AnnotationDbi::select(org.Hs.eg.db, keys=rownames(counttable),
+                              columns=c("SYMBOL"),
+                              keytype="ENSEMBL") %>% filter(!duplicated(SYMBOL))
+
+
+
+
+counttable_anno <- merge(counttable, anno, by.x = 0, by.y = "ENSEMBL")
+counttable_anno
+counttable_anno <- counttable_anno[!is.na(counttable_anno$SYMBOL),]
+counttable_anno <- counttable_anno %>% filter(!duplicated(SYMBOL))
+
+counttable_anno
+rownames(counttable_anno) <- counttable_anno$SYMBOL
+
+counttable_anno$Row.names <- NULL
+counttable_anno$SYMBOL <- NULL
+counttable_anno
+
+write.table(counts(dds),"DESeq_output/DESeq2.counts.tsv", sep="\t", quote=FALSE, col.names=NA)
+write.table(counts(dds, normalized=T),"DESeq_output/DESeq2.counts_normalized.tsv", sep="\t", quote=FALSE, col.names=NA)
+write.table(counttable_anno,"DESeq_output/DESeq2HTSseq.counts_normalized.tsv", sep="\t", quote=FALSE, col.names=NA)
+
 
 ## Plotting pvalues
 hist (res$pvalue, breas=20)
@@ -228,7 +260,7 @@ top20_sigOE_genes <- rownames(sigOE_ordered[1:30, ])
 top20_sigOE_genes
 
 normalized_counts <- counts(dds, normalized=T)
-
+normalized_counts
 ### use melt to modify the format of the data frame
 #melted_top20_sigOE <- data.frame(melt(top20_sigOE_norm))
 
@@ -246,7 +278,8 @@ normalized_counts <- counts(dds, normalized=T)
 
 # Volcano plot
 resOE_df <- data.frame(res)
-resOE_df_ordered <- resOE_df[order(resOE_df$padj), ] 
+resOE_df_ordered <- resOE_df[order(resOE_df$padj), ]
+resOE_df_ordered
 resOE_df_ordered$genelabels <- rownames(resOE_df_ordered) %in% rownames(resOE_df_ordered[1:20,])
 
 png(filename="DESeq_output/VolcanoPlot_annot_lex.png", units = 'in', width = 12, height = 8, res = 250)
@@ -259,15 +292,21 @@ ggplot(resOE_df_ordered) +
   theme(legend.position = "none",
         plot.title = element_text(size = rel(1.5), hjust = 0.5),
         axis.title = element_text(size = rel(1.25))) 
-dev.new()
+#dev.new()
 sigOE_ordered
 dev.off()
 
 ## Annotate our heatmap (optional)
 #annotation <- data.frame(sampletype=meta[,'sampletype'], 
 #                         row.names=rownames(meta))
-norm_OEsig <- normalized_counts[rownames(sigOE),]
 
+sigOE
+anno
+norm_OEsig <- normalized_counts[sigOE$ENSEMBL,]
+norm_OEsig_anno <- merge(norm_OEsig, anno, by.x = 0, by.y = "ENSEMBL")
+rownames(norm_OEsig_anno) <- norm_OEsig_anno$SYMBOL
+norm_OEsig_anno$SYMBOL <- NULL
+norm_OEsig_anno$Row.names <- NULL
 ## Set a color palette
 heat.colors <- brewer.pal(6, "YlOrRd")
 
@@ -281,7 +320,7 @@ anno_colors <- list(Var1 = Var1)
 
 ### Run pheatmap
 png(filename="DESeq_output/Heatmap_significantDEGs_lex.png", units = 'in', width = 12, height = 8, res = 250)
-pheatmap(norm_OEsig, 
+pheatmap(norm_OEsig_anno, 
          color = heat.colors, 
          cluster_rows = T,
          show_rownames=T,
